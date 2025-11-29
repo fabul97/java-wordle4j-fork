@@ -75,7 +75,7 @@ public class WordleGame {
             isWon = true;
             isFinished = true;
             log.println("Игрок выиграл!");
-            return "+++++"  ;
+            return "+++++";
         }
 
         // Сравниваем слова и получаем подсказку

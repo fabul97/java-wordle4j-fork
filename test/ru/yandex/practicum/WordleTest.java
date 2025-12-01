@@ -10,6 +10,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 class WordleTest {
 
     private static PrintWriter log;
@@ -255,5 +259,136 @@ class WordleTest {
         assertThrows(IllegalArgumentException.class, () -> {
             WordleDictionary.compareWords("дом", "домик");
         });
+    }
+
+    // Тесты WordleDictionaryLoader
+
+    @Test
+    void testLoadDictionary_Success() throws Exception {
+        File tempFile = File.createTempFile("test_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write("слово\n");
+            writer.write("книга\n");
+            writer.write("стена\n");
+            writer.write("домик\n");  // 5 букв
+            writer.write("дом\n");    // 3 буквы - не попадёт
+            writer.write("большой\n"); // 7 букв - не попадёт
+        }
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+        WordleDictionary dict = loader.loadDictionary(tempFile.getAbsolutePath());
+
+        assertNotNull(dict);
+        assertEquals(4, dict.size()); // Только слова из 5 букв
+        assertTrue(dict.contains("слово"));
+        assertTrue(dict.contains("книга"));
+        assertFalse(dict.contains("дом"));
+        assertFalse(dict.contains("большой"));
+    }
+
+    @Test
+    void testLoadDictionary_FileNotFound() {
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+
+        assertThrows(IOException.class, () -> {
+            loader.loadDictionary("nonexistent_file.txt");
+        });
+    }
+
+    @Test
+    void testLoadDictionary_EmptyFile() throws Exception {
+        File tempFile = File.createTempFile("empty_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+
+        assertThrows(DictionaryException.class, () -> {
+            loader.loadDictionary(tempFile.getAbsolutePath());
+        });
+    }
+
+    @Test
+    void testLoadDictionary_NoFiveLetterWords() throws Exception {
+        File tempFile = File.createTempFile("short_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write("дом\n");
+            writer.write("кот\n");
+            writer.write("я\n");
+        }
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+
+        assertThrows(DictionaryException.class, () -> {
+            loader.loadDictionary(tempFile.getAbsolutePath());
+        });
+    }
+
+    @Test
+    void testLoadDictionary_Normalization() throws Exception {
+        File tempFile = File.createTempFile("norm_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write("СЛОВО\n");      // Верхний регистр
+            writer.write("Книга\n");      // Смешанный регистр
+            writer.write("ёлкин\n");      // С буквой ё
+            writer.write("ЁЖИКИ\n");      // Верхний регистр с ё
+        }
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+        WordleDictionary dict = loader.loadDictionary(tempFile.getAbsolutePath());
+
+        assertTrue(dict.contains("слово"));
+        assertTrue(dict.contains("книга"));
+        assertTrue(dict.contains("елкин"));
+        assertTrue(dict.contains("ежики"));
+        assertTrue(dict.contains("ёлкин"));
+        assertTrue(dict.contains("ЁЖИКИ"));
+    }
+
+    @Test
+    void testLoadDictionary_WithSpaces() throws Exception {
+        File tempFile = File.createTempFile("space_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write("  слово  \n");
+            writer.write("\tкнига\t\n");
+            writer.write("стена\n");
+        }
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+        WordleDictionary dict = loader.loadDictionary(tempFile.getAbsolutePath());
+
+        assertEquals(3, dict.size());
+        assertTrue(dict.contains("слово"));
+        assertTrue(dict.contains("книга"));
+        assertTrue(dict.contains("стена"));
+    }
+
+    @Test
+    void testLoadDictionary_OnlyRussianLetters() throws Exception {
+        File tempFile = File.createTempFile("mixed_dict", ".txt");
+        tempFile.deleteOnExit();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write("слово\n");
+            writer.write("hello\n");
+            writer.write("сло12\n");
+            writer.write("сло-в\n");
+            writer.write("книга\n");
+        }
+
+        WordleDictionaryLoader loader = new WordleDictionaryLoader(log);
+        WordleDictionary dict = loader.loadDictionary(tempFile.getAbsolutePath());
+
+        assertEquals(2, dict.size());
+        assertTrue(dict.contains("слово"));
+        assertTrue(dict.contains("книга"));
+        assertFalse(dict.contains("hello"));
     }
 }

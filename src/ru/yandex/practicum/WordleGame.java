@@ -3,6 +3,9 @@ package ru.yandex.practicum;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
 
 /*
 в этом классе хранится словарь и состояние игры
@@ -29,6 +32,7 @@ public class WordleGame {
     private final List<WordleDictionary.WordAttempt> attempts;
     private boolean isWon;
     private boolean isFinished;
+    private final Set<String> usedHints;
 
     public WordleGame(WordleDictionary dictionary, PrintWriter log) {
         this.dictionary = dictionary;
@@ -36,6 +40,7 @@ public class WordleGame {
         this.answer = dictionary.getRandomWord();
         this.steps = MAX_STEPS;
         this.attempts = new ArrayList<>();
+        this.usedHints = new HashSet<>();  // ← ДОБАВИТЬ
         this.isWon = false;
         this.isFinished = false;
 
@@ -99,13 +104,17 @@ public class WordleGame {
 
         List<String> candidates = dictionary.filterByAttempts(attempts);
 
+        candidates.removeAll(usedHints);
+
         if (candidates.isEmpty()) {
             log.println("Подходящих слов не найдено!");
             return null;
         }
 
-        // Возвращаем первое подходящее слово (можно сделать случайное)
-        String hint = candidates.get(0);
+        Random random = new Random();
+        String hint = candidates.get(random.nextInt(candidates.size()));
+
+        usedHints.add(hint);
         log.println("Подсказка: " + hint + " (всего вариантов: " + candidates.size() + ")");
 
         return hint;
